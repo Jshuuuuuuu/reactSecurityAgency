@@ -61,7 +61,7 @@ export default function LandingPage() {
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center space-x-2">
               <Shield className="w-8 h-8 text-blue-500" />
-              <span className="text-2xl font-bold">SecureGuard</span>
+              <span className="text-2xl font-bold">RQA Security Agency</span>
             </div>
             
             {/* Desktop Menu */}
@@ -164,7 +164,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6">Why Choose SecureGuard?</h2>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">Why Choose RQA?</h2>
               <p className="text-xl text-slate-400 mb-8">
                 With over 15 years of experience, we've established ourselves as the leading security provider in the region.
               </p>
@@ -228,7 +228,7 @@ export default function LandingPage() {
             <div className="bg-slate-800/50 p-8 rounded-xl text-center border border-slate-700 hover:border-blue-500 transition-colors">
               <Mail className="w-12 h-12 text-blue-500 mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Email Us</h3>
-              <p className="text-slate-400">info@secureguard.com</p>
+              <p className="text-slate-400">info@rqasecurityagency.com</p>
             </div>
             <div className="bg-slate-800/50 p-8 rounded-xl text-center border border-slate-700 hover:border-blue-500 transition-colors">
               <MapPin className="w-12 h-12 text-blue-500 mx-auto mb-4" />
@@ -244,10 +244,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <Shield className="w-8 h-8 text-blue-500" />
-            <span className="text-2xl font-bold">SecureGuard</span>
+            <span className="text-2xl font-bold">RQA Security Agency</span>
           </div>
           <p className="text-slate-400 mb-4">Professional Security Solutions Since 2009</p>
-          <p className="text-slate-500 text-sm">© 2024 SecureGuard Security Agency. All rights reserved.</p>
+          <p className="text-slate-500 text-sm">© 2024 RQA Security Agency. All rights reserved.</p>
         </div>
       </footer>
     </div>
