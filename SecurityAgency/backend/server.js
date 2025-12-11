@@ -163,9 +163,22 @@ app.get('/api/personnel', async (req, res) => {
         p.personnel_age,
         p.contact_no,
         p.email,
+        p.civilstatus_id,
+        p.gender_id,
+        p.address_id,
         cs.title as civil_status,
         g.gender_name as gender,
-        CONCAT(a.street, ', ', a.barangay, ', ', a.city, ', ', a.province) as address
+        a.street,
+        a.barangay,
+        a.city,
+        a.province,
+        a.postal_code,
+        CONCAT_WS(', ', 
+          NULLIF(a.street, ''), 
+          NULLIF(a.barangay, ''), 
+          NULLIF(a.city, ''), 
+          NULLIF(a.province, '')
+        ) as address
       FROM personnel p
       LEFT JOIN civilstatus cs ON p.civilstatus_id = cs.civilstatus_id
       LEFT JOIN gender g ON p.gender_id = g.gender_id
@@ -276,9 +289,10 @@ app.put('/api/personnel/:id', async (req, res) => {
     barangay,
     city,
     province,
-    postal_code,
-    address_id
+    postal_code
   } = req.body;
+
+  let address_id = req.body.address_id;
 
   try {
     await pool.query('BEGIN');

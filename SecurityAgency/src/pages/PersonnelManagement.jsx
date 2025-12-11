@@ -83,9 +83,11 @@ export default function PersonnelManagement() {
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
-  const openModal = (person = null) => {
+  const openModal = async (person = null) => {
     if (person) {
       setEditingPersonnel(person);
+      
+      // If editing and has address data from the list
       setFormData({
         personnel_name: person.personnel_name || '',
         personnel_age: person.personnel_age || '',
@@ -240,6 +242,7 @@ export default function PersonnelManagement() {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Gender</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Contact</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Email</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Address</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Status</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Actions</th>
                 </tr>
@@ -260,6 +263,9 @@ export default function PersonnelManagement() {
                     <td className="px-6 py-4 text-sm text-slate-600">{person.gender || 'N/A'}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{person.contact_no || 'N/A'}</td>
                     <td className="px-6 py-4 text-sm text-slate-600">{person.email || 'N/A'}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600 max-w-xs truncate" title={person.address}>
+                      {person.address || 'N/A'}
+                    </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                         {person.civil_status || 'N/A'}

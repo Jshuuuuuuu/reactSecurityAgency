@@ -17,6 +17,7 @@ export default function AdminDashboard() {
     // Get user info from localStorage
     const userInfo = localStorage.getItem('user');
     if (userInfo) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUser(JSON.parse(userInfo));
     }
   }, []);
