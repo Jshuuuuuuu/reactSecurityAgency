@@ -149,6 +149,214 @@ app.get('/api/hash-passwords', async (req, res) => {
   }
 });
 
+// ============= PERSONNEL MANAGEMENT API =============
+
+// Get all personnel with optional search
+app.get('/api/personnel', async (req, res) => {
+  const { search } = req.query;
+  
+  try {
+    let query = `
+      SELECT 
+        p.personnel_id,
+        p.personnel_name,
+        p.personnel_age,
+        p.contact_no,
+        p.email,
+        cs.title as civil_status,
+        g.gender_name as gender,
+        CONCAT(a.street, ', ', a.barangay, ', ', a.city, ', ', a.province) as address
+      FROM personnel p
+      LEFT JOIN civilstatus cs ON p.civilstatus_id = cs.civilstatus_id
+      LEFT JOIN gender g ON p.gender_id = g.gender_id
+      LEFT JOIN address a ON p.address_id = a.address_id
+    `;
+    
+    const params = [];
+    if (search) {
+      query += ` WHERE LOWER(p.personnel_name) LIKE LOWER($1) 
+                 OR LOWER(p.email) LIKE LOWER($1) 
+                 OR LOWER(p.contact_no) LIKE LOWER($1)`;
+      params.push(`%${search}%`);
+    }
+    
+    query += ' ORDER BY p.personnel_id DESC';
+    
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Get personnel error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching personnel' });
+  }
+});
+
+// Get single personnel by ID
+app.get('/api/personnel/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        p.*,
+        cs.title as civil_status,
+        g.gender_name as gender
+      FROM personnel p
+      LEFT JOIN civilstatus cs ON p.civilstatus_id = cs.civilstatus_id
+      LEFT JOIN gender g ON p.gender_id = g.gender_id
+      WHERE p.personnel_id = $1`,
+      [req.params.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Personnel not found' });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Get personnel error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching personnel' });
+  }
+});
+
+// Add new personnel
+app.post('/api/personnel', async (req, res) => {
+  const { 
+    personnel_name, 
+    personnel_age, 
+    civilstatus_id, 
+    gender_id, 
+    contact_no, 
+    email,
+    street,
+    barangay,
+    city,
+    province,
+    postal_code
+  } = req.body;
+
+  try {
+    // Start transaction
+    await pool.query('BEGIN');
+
+    // Insert address first
+    let address_id = null;
+    if (street || barangay || city || province) {
+      const addressResult = await pool.query(
+        `INSERT INTO address (street, barangay, city, province, postal_code)
+         VALUES ($1, $2, $3, $4, $5) RETURNING address_id`,
+        [street, barangay, city, province, postal_code]
+      );
+      address_id = addressResult.rows[0].address_id;
+    }
+
+    // Insert personnel
+    const personnelResult = await pool.query(
+      `INSERT INTO personnel (personnel_name, personnel_age, civilstatus_id, gender_id, address_id, contact_no, email)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [personnel_name, personnel_age, civilstatus_id, gender_id, address_id, contact_no, email]
+    );
+
+    await pool.query('COMMIT');
+    res.json({ success: true, message: 'Personnel added successfully', data: personnelResult.rows[0] });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Add personnel error:', error);
+    res.status(500).json({ success: false, message: 'Error adding personnel', error: error.message });
+  }
+});
+
+// Update personnel
+app.put('/api/personnel/:id', async (req, res) => {
+  const { 
+    personnel_name, 
+    personnel_age, 
+    civilstatus_id, 
+    gender_id, 
+    contact_no, 
+    email,
+    street,
+    barangay,
+    city,
+    province,
+    postal_code,
+    address_id
+  } = req.body;
+
+  try {
+    await pool.query('BEGIN');
+
+    // Update or create address
+    if (address_id) {
+      await pool.query(
+        `UPDATE address SET street = $1, barangay = $2, city = $3, province = $4, postal_code = $5
+         WHERE address_id = $6`,
+        [street, barangay, city, province, postal_code, address_id]
+      );
+    } else if (street || barangay || city || province) {
+      const addressResult = await pool.query(
+        `INSERT INTO address (street, barangay, city, province, postal_code)
+         VALUES ($1, $2, $3, $4, $5) RETURNING address_id`,
+        [street, barangay, city, province, postal_code]
+      );
+      address_id = addressResult.rows[0].address_id;
+    }
+
+    // Update personnel
+    const result = await pool.query(
+      `UPDATE personnel 
+       SET personnel_name = $1, personnel_age = $2, civilstatus_id = $3, 
+           gender_id = $4, address_id = $5, contact_no = $6, email = $7
+       WHERE personnel_id = $8 RETURNING *`,
+      [personnel_name, personnel_age, civilstatus_id, gender_id, address_id, contact_no, email, req.params.id]
+    );
+
+    await pool.query('COMMIT');
+    res.json({ success: true, message: 'Personnel updated successfully', data: result.rows[0] });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Update personnel error:', error);
+    res.status(500).json({ success: false, message: 'Error updating personnel', error: error.message });
+  }
+});
+
+// Delete personnel
+app.delete('/api/personnel/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM personnel WHERE personnel_id = $1 RETURNING *',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Personnel not found' });
+    }
+
+    res.json({ success: true, message: 'Personnel deleted successfully' });
+  } catch (error) {
+    console.error('Delete personnel error:', error);
+    res.status(500).json({ success: false, message: 'Error deleting personnel', error: error.message });
+  }
+});
+
+// Get lookup data for dropdowns
+app.get('/api/lookup-data', async (req, res) => {
+  try {
+    const [genders, civilStatuses] = await Promise.all([
+      pool.query('SELECT * FROM gender ORDER BY gender_id'),
+      pool.query('SELECT * FROM civilstatus ORDER BY civilstatus_id')
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        genders: genders.rows,
+        civilStatuses: civilStatuses.rows
+      }
+    });
+  } catch (error) {
+    console.error('Get lookup data error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching lookup data' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Visit http://localhost:${PORT}/api/setup to initialize the database`);

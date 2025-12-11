@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PersonnelManagement from './PersonnelManagement';
 import { 
   Shield, Users, Briefcase, UserCheck, DollarSign, FileText, 
   Menu, X, Home, LogOut, Settings, Bell, Search, TrendingUp,
@@ -286,8 +287,11 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* Personnel Management */}
+          {activeMenu === 'personnel' && <PersonnelManagement />}
+
           {/* Placeholder for other menu items */}
-          {activeMenu !== 'dashboard' && (
+          {activeMenu !== 'dashboard' && activeMenu !== 'personnel' && (
             <div className="bg-white rounded-xl shadow-sm p-8 border border-slate-200 text-center">
               <h2 className="text-2xl font-bold text-slate-800 mb-4">
                 {menuItems.find(item => item.id === activeMenu)?.label}
