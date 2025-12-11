@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Shield, Eye, Users, Clock, CheckCircle, Phone, Mail, MapPin, Menu, X, Lock, Zap, Award } from 'lucide-react';
 
 export default function LandingPage() {
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -72,9 +74,17 @@ export default function LandingPage() {
               <a href="#contact" className="hover:text-blue-400 transition-colors">Contact</a>
             </div>
 
-            <button className="hidden md:block bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg transition-colors">
-              Get Quote
-            </button>
+            <div className="hidden md:flex space-x-4">
+              <button 
+                onClick={() => navigate('/login')}
+                className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg transition-colors"
+              >
+                Admin Login
+              </button>
+              <button className="border-2 border-blue-500 hover:bg-blue-500/10 px-6 py-2 rounded-lg transition-colors">
+                Get Quote
+              </button>
+            </div>
 
             {/* Mobile Menu Button */}
             <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden">
@@ -91,7 +101,13 @@ export default function LandingPage() {
               <a href="#services" className="block hover:text-blue-400 transition-colors">Services</a>
               <a href="#about" className="block hover:text-blue-400 transition-colors">About</a>
               <a href="#contact" className="block hover:text-blue-400 transition-colors">Contact</a>
-              <button className="w-full bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg transition-colors">
+              <button 
+                onClick={() => navigate('/login')}
+                className="w-full bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg transition-colors"
+              >
+                Admin Login
+              </button>
+              <button className="w-full border-2 border-blue-500 hover:bg-blue-500/10 px-6 py-2 rounded-lg transition-colors">
                 Get Quote
               </button>
             </div>

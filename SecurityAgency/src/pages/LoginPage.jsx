@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
@@ -20,17 +23,33 @@ export default function LoginPage() {
       return;
     }
 
-    // Simulate login - Replace this with your actual authentication logic
-    setTimeout(() => {
-      if (email === 'admin@rqa.com' && password === 'admin123') {
-        // Success - redirect to dashboard
-        console.log('Login successful');
-        // window.location.href = '/dashboard'; // Or use your router
+    try {
+      // Make API call to backend
+      const response = await axios.post('http://localhost:5000/api/login', {
+        email,
+        password
+      });
+
+      if (response.data.success) {
+        // Store authentication status and user info
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        // Redirect to dashboard
+        navigate('/dashboard');
       } else {
-        setError('Invalid email or password');
+        setError(response.data.message || 'Login failed');
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      if (error.response && error.response.data) {
+        setError(error.response.data.message);
+      } else {
+        setError('Unable to connect to server. Please make sure the backend is running.');
+      }
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

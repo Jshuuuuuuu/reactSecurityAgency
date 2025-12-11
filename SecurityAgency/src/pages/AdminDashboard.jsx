@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, Briefcase, UserCheck, DollarSign, FileText, 
   Menu, X, Home, LogOut, Settings, Bell, Search, TrendingUp,
@@ -6,8 +7,24 @@ import {
 } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Get user info from localStorage
+    const userInfo = localStorage.getItem('user');
+    if (userInfo) {
+      setUser(JSON.parse(userInfo));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   // Sample data - replace with your actual database data
   const stats = {
@@ -79,7 +96,10 @@ export default function AdminDashboard() {
             <Settings className="w-5 h-5 flex-shrink-0" />
             {isSidebarOpen && <span className="text-sm">Settings</span>}
           </button>
-          <button className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-800 transition-colors text-red-400">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-slate-800 transition-colors text-red-400"
+          >
             <LogOut className="w-5 h-5 flex-shrink-0" />
             {isSidebarOpen && <span className="text-sm">Logout</span>}
           </button>
@@ -117,11 +137,13 @@ export default function AdminDashboard() {
               
               <div className="flex items-center space-x-3 border-l border-slate-200 pl-4">
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-800">Admin User</p>
-                  <p className="text-xs text-slate-500">Administrator</p>
+                  <p className="text-sm font-semibold text-slate-800">{user?.name || 'Admin User'}</p>
+                  <p className="text-xs text-slate-500">{user?.role || 'Administrator'}</p>
                 </div>
                 <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-semibold">AU</span>
+                  <span className="text-white font-semibold">
+                    {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'AU'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -134,7 +156,9 @@ export default function AdminDashboard() {
             <div>
               {/* Welcome Section */}
               <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome back, Admin!</h1>
+                <h1 className="text-3xl font-bold text-slate-800 mb-2">
+                  Welcome back, {user?.name?.split(' ')[0] || 'Admin'}!
+                </h1>
                 <p className="text-slate-600">Here's what's happening with your security agency today.</p>
               </div>
 
