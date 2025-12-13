@@ -187,7 +187,7 @@ export default function PersonnelManagement() {
 
       {/* Message Alert */}
       {message.text && (
-        <div className={`mb-6 p-4 rounded-lg flex items-center space-x-3 ${
+        <div className={`mb-6 p-4 rounded-lg flex items-center space-x-3 animate-in slide-in-from-top duration-300 ${
           message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 
           'bg-red-50 text-red-800 border border-red-200'
         }`}>
@@ -226,13 +226,13 @@ export default function PersonnelManagement() {
             <Loader className="w-8 h-8 text-blue-600 animate-spin" />
           </div>
         ) : filteredPersonnel.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="text-center py-20 animate-in fade-in duration-500">
             <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
             <p className="text-slate-600 text-lg">No personnel found</p>
             <p className="text-slate-400 text-sm">Add your first personnel member to get started</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto animate-in fade-in duration-300">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
@@ -248,8 +248,12 @@ export default function PersonnelManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredPersonnel.map((person) => (
-                  <tr key={person.personnel_id} className="hover:bg-slate-50 transition-colors">
+                {filteredPersonnel.map((person, index) => (
+                  <tr 
+                    key={person.personnel_id} 
+                    className="hover:bg-slate-50 transition-all duration-200 animate-in fade-in slide-in-from-bottom-4"
+                    style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
+                  >
                     <td className="px-6 py-4 text-sm text-slate-600">{person.personnel_id}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
@@ -299,8 +303,8 @@ export default function PersonnelManagement() {
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 backdrop-blur-md bg-white/30 flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-in slide-in-from-top-4 zoom-in-95 duration-500">
             {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-slate-800">

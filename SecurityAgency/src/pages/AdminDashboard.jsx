@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PersonnelManagement from './PersonnelManagement';
+import SalaryManagement from './SalaryManagement';
 import { 
   Shield, Users, Briefcase, UserCheck, DollarSign, FileText, 
   Menu, X, Home, LogOut, Settings, Bell, Search, TrendingUp,
@@ -289,11 +290,22 @@ export default function AdminDashboard() {
           )}
 
           {/* Personnel Management */}
-          {activeMenu === 'personnel' && <PersonnelManagement />}
+          {activeMenu === 'personnel' && (
+            <div className="animate-in fade-in duration-500">
+              <PersonnelManagement />
+            </div>
+          )}
+
+          {/* Salary Management */}
+          {activeMenu === 'salary' && (
+            <div className="animate-in fade-in duration-500">
+              <SalaryManagement />
+            </div>
+          )}
 
           {/* Placeholder for other menu items */}
-          {activeMenu !== 'dashboard' && activeMenu !== 'personnel' && (
-            <div className="bg-white rounded-xl shadow-sm p-8 border border-slate-200 text-center">
+          {activeMenu !== 'dashboard' && activeMenu !== 'personnel' && activeMenu !== 'salary' && (
+            <div className="bg-white rounded-xl shadow-sm p-8 border border-slate-200 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h2 className="text-2xl font-bold text-slate-800 mb-4">
                 {menuItems.find(item => item.id === activeMenu)?.label}
               </h2>

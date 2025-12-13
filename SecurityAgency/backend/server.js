@@ -371,6 +371,246 @@ app.get('/api/lookup-data', async (req, res) => {
   }
 });
 
+// ==================== SALARY MANAGEMENT ENDPOINTS ====================
+
+// Get all personnel with salary information
+app.get('/api/salary/personnel', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        p.personnel_id,
+        p.personnel_name,
+        COALESCE(ps.base_salary, 0) as base_salary,
+        COALESCE(ps.base_bonus, 0) as base_bonus,
+        COALESCE(ps.base_allowance, 0) as base_allowance,
+        COALESCE(s.total_deductions, 0) as total_deductions,
+        COALESCE(s.net_gross, 0) as net_salary,
+        NULL as last_payment_date,
+        NULL as next_payment_due,
+        NULL as days_until_next_payment,
+        CASE WHEN ps.personnel_id IS NOT NULL THEN true ELSE false END as has_salary,
+        false as payment_due
+      FROM personnel p
+      LEFT JOIN personnelsalary ps ON p.personnel_id = ps.personnel_id
+      LEFT JOIN salary s ON ps.personnel_id = s.personnel_id
+      ORDER BY p.personnel_id ASC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Get personnel salary error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching personnel salary data', error: error.message });
+  }
+});
+
+// Get all deduction types
+app.get('/api/salary/deductions', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT deduction_id, deduction_type FROM deductions ORDER BY deduction_id'
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Get deductions error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching deductions' });
+  }
+});
+
+// Get deductions for a specific personnel salary
+app.get('/api/salary/:personnelId/deductions', async (req, res) => {
+  const { personnelId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT 
+        d.deduction_id,
+        d.deduction_type,
+        sd.amount
+       FROM salarydeductions sd
+       JOIN personnel_deductions pd ON sd.deduct_id = pd.deduct_id
+       JOIN deductions d ON pd.deduction_id = d.deduction_id
+       WHERE pd.personnel_id = $1`,
+      [personnelId]
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Get personnel deductions error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching deductions' });
+  }
+});
+
+// Calculate and save salary
+app.post('/api/salary/calculate', async (req, res) => {
+  const { personnel_id, base_salary, base_bonus, base_allowance, deductions } = req.body;
+  
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Calculate totals
+    const grossSalary = parseFloat(base_salary) + parseFloat(base_bonus) + parseFloat(base_allowance);
+    const totalDeductions = deductions.reduce((sum, d) => sum + parseFloat(d.amount), 0);
+    const netSalary = grossSalary - totalDeductions;
+    
+    // Check if personnel salary already exists
+    const existingSalary = await client.query(
+      'SELECT personnel_id FROM personnelsalary WHERE personnel_id = $1',
+      [personnel_id]
+    );
+    
+    if (existingSalary.rows.length > 0) {
+      // Update existing personnel salary (without date columns to avoid errors)
+      await client.query(
+        `UPDATE personnelsalary 
+         SET base_salary = $1, base_bonus = $2, base_allowance = $3
+         WHERE personnel_id = $4`,
+        [base_salary, base_bonus, base_allowance, personnel_id]
+      );
+    } else {
+      // Insert new personnel salary (without date columns to avoid errors)
+      await client.query(
+        `INSERT INTO personnelsalary (personnel_id, base_salary, base_bonus, base_allowance)
+         VALUES ($1, $2, $3, $4)`,
+        [personnel_id, base_salary, base_bonus, base_allowance]
+      );
+    }
+    
+    // Check if salary record exists
+    const existingSalaryRecord = await client.query(
+      'SELECT salary_id FROM salary WHERE personnel_id = $1',
+      [personnel_id]
+    );
+    
+    let salaryId;
+    
+    if (existingSalaryRecord.rows.length > 0) {
+      // Update existing salary record
+      salaryId = existingSalaryRecord.rows[0].salary_id;
+      await client.query(
+        `UPDATE salary 
+         SET total_deductions = $1, total_gross = $2, net_gross = $3
+         WHERE salary_id = $4`,
+        [totalDeductions, grossSalary, netSalary, salaryId]
+      );
+      
+      // Delete existing deductions
+      await client.query('DELETE FROM salarydeductions WHERE salary_id = $1', [salaryId]);
+    } else {
+      // Insert new salary record
+      const salaryResult = await client.query(
+        `INSERT INTO salary (personnel_id, total_deductions, total_gross, net_gross)
+         VALUES ($1, $2, $3, $4)
+         RETURNING salary_id`,
+        [personnel_id, totalDeductions, grossSalary, netSalary]
+      );
+      salaryId = salaryResult.rows[0].salary_id;
+    }
+    
+    // Insert deductions
+    if (deductions && deductions.length > 0) {
+      for (const deduction of deductions) {
+        try {
+          // First insert into personnel_deductions
+          const pdResult = await client.query(
+            `INSERT INTO personnel_deductions (personnel_id, deduction_id, contribution_amount)
+             VALUES ($1, $2, $3)
+             ON CONFLICT ON CONSTRAINT personnel_deductions_pkey
+             DO UPDATE SET contribution_amount = $3
+             RETURNING deduct_id`,
+            [personnel_id, deduction.deduction_id, deduction.amount]
+          );
+          
+          const deductId = pdResult.rows[0].deduct_id;
+          
+          // Then insert into salarydeductions
+          await client.query(
+            `INSERT INTO salarydeductions (salary_id, deduct_id, amount)
+             VALUES ($1, $2, $3)`,
+            [salaryId, deductId, deduction.amount]
+          );
+        } catch (err) {
+          console.error('Deduction insertion error:', err);
+          // Continue with other deductions
+        }
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      message: 'Salary calculated and saved successfully',
+      data: {
+        salary_id: salaryId,
+        gross_salary: grossSalary,
+        total_deductions: totalDeductions,
+        net_salary: netSalary
+      }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Calculate salary error:', error);
+    res.status(500).json({ success: false, message: 'Error calculating salary' });
+  } finally {
+    client.release();
+  }
+});
+
+// Delete salary record
+app.delete('/api/salary/:personnelId', async (req, res) => {
+  const { personnelId } = req.params;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Get salary_id
+    const salaryResult = await client.query(
+      'SELECT salary_id FROM salary WHERE personnel_id = $1',
+      [personnelId]
+    );
+    
+    if (salaryResult.rows.length > 0) {
+      const salaryId = salaryResult.rows[0].salary_id;
+      
+      // Delete salary deductions
+      await client.query('DELETE FROM salarydeductions WHERE salary_id = $1', [salaryId]);
+      
+      // Delete salary record
+      await client.query('DELETE FROM salary WHERE salary_id = $1', [salaryId]);
+    }
+    
+    // Delete personnel salary
+    await client.query('DELETE FROM personnelsalary WHERE personnel_id = $1', [personnelId]);
+    
+    await client.query('COMMIT');
+    
+    res.json({
+      success: true,
+      message: 'Salary record deleted successfully'
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Delete salary error:', error);
+    res.status(500).json({ success: false, message: 'Error deleting salary record' });
+  } finally {
+    client.release();
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Visit http://localhost:${PORT}/api/setup to initialize the database`);
