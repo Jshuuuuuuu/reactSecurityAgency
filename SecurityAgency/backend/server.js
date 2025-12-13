@@ -389,6 +389,7 @@ app.get('/api/salary/personnel', async (req, res) => {
         NULL as next_payment_due,
         NULL as days_until_next_payment,
         CASE WHEN ps.personnel_id IS NOT NULL THEN true ELSE false END as has_salary,
+        'unpaid' as payment_status,
         false as payment_due
       FROM personnel p
       LEFT JOIN personnelsalary ps ON p.personnel_id = ps.personnel_id
@@ -453,7 +454,7 @@ app.get('/api/salary/:personnelId/deductions', async (req, res) => {
 
 // Calculate and save salary
 app.post('/api/salary/calculate', async (req, res) => {
-  const { personnel_id, base_salary, base_bonus, base_allowance, deductions } = req.body;
+  const { personnel_id, base_salary, base_bonus, base_allowance, payment_status, deductions } = req.body;
   
   const client = await pool.connect();
   

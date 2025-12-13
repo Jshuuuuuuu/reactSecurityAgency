@@ -21,7 +21,8 @@ export default function SalaryManagement() {
     base_salary: '',
     base_bonus: '5000.00',
     base_allowance: '3000.00',
-    selectedDeductions: []
+    selectedDeductions: [],
+    payment_status: 'unpaid'
   });
 
   const [calculatedSalary, setCalculatedSalary] = useState({
@@ -48,8 +49,16 @@ export default function SalaryManagement() {
       setLoading(true);
       const response = await axios.get('http://localhost:5000/api/salary/personnel');
       if (response.data.success) {
-        setPersonnel(response.data.data);
-        setFilteredPersonnel(response.data.data);
+        // Load payment status from localStorage
+        const salaryData = JSON.parse(localStorage.getItem('salaryData') || '{}');
+        
+        const personnelWithStatus = response.data.data.map(person => ({
+          ...person,
+          payment_status: salaryData[person.personnel_id]?.payment_status || person.payment_status || 'unpaid'
+        }));
+        
+        setPersonnel(personnelWithStatus);
+        setFilteredPersonnel(personnelWithStatus);
       }
     } catch (error) {
       showMessage('error', 'Failed to fetch personnel');
@@ -75,9 +84,9 @@ export default function SalaryManagement() {
 
     // Filter by payment status
     if (filterStatus === 'paid') {
-      filtered = filtered.filter(p => p.has_salary);
+      filtered = filtered.filter(p => p.payment_status === 'paid');
     } else if (filterStatus === 'unpaid') {
-      filtered = filtered.filter(p => !p.has_salary);
+      filtered = filtered.filter(p => p.payment_status !== 'paid');
     }
 
     // Filter by search term
@@ -133,7 +142,8 @@ export default function SalaryManagement() {
             deduction_id: d.deduction_id,
             deduction_type: d.deduction_type,
             amount: d.amount.toString()
-          }))
+          })),
+          payment_status: person.payment_status || 'unpaid'
         });
       } catch (error) {
         console.error('Error fetching deductions:', error);
@@ -141,7 +151,8 @@ export default function SalaryManagement() {
           base_salary: person.base_salary || '',
           base_bonus: person.base_bonus || '5000.00',
           base_allowance: person.base_allowance || '3000.00',
-          selectedDeductions: []
+          selectedDeductions: [],
+          payment_status: person.payment_status || 'unpaid'
         });
       }
     } else {
@@ -150,7 +161,8 @@ export default function SalaryManagement() {
         base_salary: '',
         base_bonus: '5000.00',
         base_allowance: '3000.00',
-        selectedDeductions: []
+        selectedDeductions: [],
+        payment_status: 'unpaid'
       });
     }
     
@@ -164,7 +176,8 @@ export default function SalaryManagement() {
       base_salary: '',
       base_bonus: '5000.00',
       base_allowance: '3000.00',
-      selectedDeductions: []
+      selectedDeductions: [],
+      payment_status: 'unpaid'
     });
   };
 
@@ -178,6 +191,7 @@ export default function SalaryManagement() {
         base_salary: parseFloat(salaryForm.base_salary),
         base_bonus: parseFloat(salaryForm.base_bonus),
         base_allowance: parseFloat(salaryForm.base_allowance),
+        payment_status: salaryForm.payment_status,
         deductions: salaryForm.selectedDeductions.map(d => ({
           deduction_id: d.deduction_id,
           amount: parseFloat(d.amount)
@@ -187,6 +201,14 @@ export default function SalaryManagement() {
       const response = await axios.post('http://localhost:5000/api/salary/calculate', payload);
       
       if (response.data.success) {
+        // Store payment status in localStorage as backup
+        const salaryData = JSON.parse(localStorage.getItem('salaryData') || '{}');
+        salaryData[selectedPersonnel.personnel_id] = {
+          payment_status: salaryForm.payment_status,
+          lastUpdated: new Date().toISOString()
+        };
+        localStorage.setItem('salaryData', JSON.stringify(salaryData));
+        
         showMessage('success', 'Salary calculated and saved successfully');
         fetchPersonnelWithSalary();
         closeModal();
@@ -260,8 +282,8 @@ export default function SalaryManagement() {
 
   const stats = {
     totalPersonnel: personnel.length,
-    paidPersonnel: personnel.filter(p => p.has_salary).length,
-    unpaidPersonnel: personnel.filter(p => !p.has_salary).length,
+    paidPersonnel: personnel.filter(p => p.payment_status === 'paid').length,
+    unpaidPersonnel: personnel.filter(p => p.payment_status !== 'paid').length,
     totalPayroll: personnel.reduce((sum, p) => sum + (parseFloat(p.net_salary) || 0), 0)
   };
 
@@ -441,17 +463,26 @@ export default function SalaryManagement() {
                     <td className="px-6 py-4">
                       {person.has_salary ? (
                         <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 w-fit ${
-                          person.payment_due 
-                            ? 'bg-yellow-100 text-yellow-700' 
-                            : 'bg-green-100 text-green-700'
+                          person.payment_status === 'paid'
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-yellow-100 text-yellow-700'
                         }`}>
-                          <CheckCircle className="w-3 h-3" />
-                          <span>{person.payment_due ? 'Payment Due' : 'Paid'}</span>
+                          {person.payment_status === 'paid' ? (
+                            <>
+                              <CheckCircle className="w-3 h-3" />
+                              <span>Paid</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="w-3 h-3" />
+                              <span>Unpaid</span>
+                            </>
+                          )}
                         </span>
                       ) : (
                         <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center space-x-1 w-fit">
                           <Clock className="w-3 h-3" />
-                          <span>Unpaid</span>
+                          <span>No Salary</span>
                         </span>
                       )}
                     </td>
@@ -568,6 +599,18 @@ export default function SalaryManagement() {
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="0.00"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Payment Status</label>
+                      <select
+                        value={salaryForm.payment_status}
+                        onChange={(e) => setSalaryForm(prev => ({ ...prev, payment_status: e.target.value }))}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="unpaid">Unpaid</option>
+                        <option value="paid">Paid</option>
+                      </select>
                     </div>
                   </div>
 
