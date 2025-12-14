@@ -16,13 +16,13 @@
             "ssh": "Disabled",
             "previewLimit": 50,
             "server": "localhost",
-            "port": 5433,
-            "askForPassword": true,
+            "port": 5432,
             "driver": "PostgreSQL",
-            "connectionTimeout": 30,
+            "name": "PG local2",
+            "username": "postgres",
             "database": "securityagency",
-            "name": "PG Local2",
-            "username": "postgres"
+            "connectionTimeout": 30,
+            "password": "123"
         }
     ]
 }

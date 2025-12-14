@@ -1,7 +1,6 @@
 --
 -- PostgreSQL database dump
---
-\ restrict xZx7BU5eetZKd6vgNBNkywdvtTPS582emTdjEQjKeYWUzoQWdCrb3aPk0MrPuDt -- Dumped from database version 16.11 (Ubuntu 16.11-0ubuntu0.24.04.1)
+--\ restrict xZx7BU5eetZKd6vgNBNkywdvtTPS582emTdjEQjKeYWUzoQWdCrb3aPk0MrPuDt -- Dumped from database version 16.11 (Ubuntu 16.11-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.11 (Ubuntu 16.11-0ubuntu0.24.04.1)
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -379,7 +378,8 @@ COPY public.address (
     postal_code
 )
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: assignment; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.assignment (
@@ -392,12 +392,14 @@ COPY public.assignment (
     salary_id
 )
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: civilstatus; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.civilstatus (civilstatus_id, title)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: client; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.client (
@@ -410,12 +412,14 @@ COPY public.client (
     email
 )
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: clienttype; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.clienttype (clienttype_id, business_type)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: contract; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.contract (
@@ -428,37 +432,44 @@ COPY public.contract (
     contract_value
 )
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: deductions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.deductions (deduction_id, deduction_type)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: gender; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.gender (gender_id, gender_name)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: grosssalary; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.grosssalary (grosstype_id, amount, personnel_id)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: grosstype; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.grosstype (grosstype_id, grosstype_name)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: paymenttype; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.paymenttype (paymenttype_id, type)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: payrollperiod; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.payrollperiod (pay_id, date_start, date_end, personnel_id)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: personnel; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.personnel (
@@ -473,7 +484,8 @@ COPY public.personnel (
     assignment_id
 )
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: personnel_deductions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.personnel_deductions (
@@ -484,12 +496,14 @@ COPY public.personnel_deductions (
     contribution_amount
 )
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: personnelgross; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.personnelgross (salary_id, grosstype_id, amount)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: personnelsalary; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.personnelsalary (
@@ -499,7 +513,8 @@ COPY public.personnelsalary (
     base_allowance
 )
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: salary; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.salary (
@@ -510,22 +525,26 @@ COPY public.salary (
     net_gross
 )
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: salarydeductions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.salarydeductions (salary_id, deduct_id, amount)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: status; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.status (status_id, status_name)
 FROM stdin;
-\.--
+\.
+--
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.users (user_id, email, password_hash)
 FROM stdin;
-1 adminabbie admin123 \.--
+\.
+--
 -- Name: address_address_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 SELECT pg_catalog.setval('public.address_address_id_seq', 1, false);
@@ -878,5 +897,4 @@ ALTER TABLE ONLY public.salarydeductions
 ADD CONSTRAINT fk_sdeduct_salary FOREIGN KEY (salary_id) REFERENCES public.salary(salary_id) ON DELETE CASCADE;
 --
 -- PostgreSQL database dump complete
---
-\ unrestrict xZx7BU5eetZKd6vgNBNkywdvtTPS582emTdjEQjKeYWUzoQWdCrb3aPk0MrPuDt
+--\ unrestrict xZx7BU5eetZKd6vgNBNkywdvtTPS582emTdjEQjKeYWUzoQWdCrb3aPk0MrPuDt--
