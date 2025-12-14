@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PersonnelManagement from './PersonnelManagement';
 import SalaryManagement from './SalaryManagement';
+import ContractManagement from './ContractManagement';
+
 import { 
   Shield, Users, Briefcase, UserCheck, DollarSign, FileText, 
   Menu, X, Home, LogOut, Settings, Bell, Search, TrendingUp,
@@ -300,6 +302,13 @@ export default function AdminDashboard() {
           {activeMenu === 'salary' && (
             <div className="animate-in fade-in duration-500">
               <SalaryManagement />
+            </div>
+          )}
+
+          {/* Contract Management */}
+          {activeMenu === 'contracts' && (
+            <div className="animate-in fade-in duration-500">
+              <ContractManagement />
             </div>
           )}
 
