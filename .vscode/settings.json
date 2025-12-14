@@ -11,6 +11,18 @@
             "username": "postgres",
             "password": "jshunjed@2024",
             "connectionTimeout": 30
+        },
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5433,
+            "askForPassword": true,
+            "driver": "PostgreSQL",
+            "connectionTimeout": 30,
+            "database": "securityagency",
+            "name": "PG Local2",
+            "username": "postgres"
         }
     ]
 }
