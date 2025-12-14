@@ -1,7 +1,7 @@
 --
 -- PostgreSQL database dump
 --
-restrict xZx7BU5eetZKd6vgNBNkywdvtTPS582emTdjEQjKeYWUzoQWdCrb3aPk0MrPuDt -- Dumped from database version 16.11 (Ubuntu 16.11-0ubuntu0.24.04.1)
+\ restrict xZx7BU5eetZKd6vgNBNkywdvtTPS582emTdjEQjKeYWUzoQWdCrb3aPk0MrPuDt -- Dumped from database version 16.11 (Ubuntu 16.11-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.11 (Ubuntu 16.11-0ubuntu0.24.04.1)
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -379,7 +379,7 @@ COPY public.address (
     postal_code
 )
 FROM stdin;
---
+\.--
 -- Data for Name: assignment; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 COPY public.assignment (
