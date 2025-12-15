@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  FileText, Search, Plus, Edit, Trash2, X, Save, AlertCircle, 
-  CheckCircle, Loader, Building, Calendar, TrendingUp,
+  FileText, Search, Trash2, AlertCircle, 
+  CheckCircle, Loader, Building,
   Clock, AlertTriangle, CheckSquare
 } from 'lucide-react';
 
@@ -11,21 +11,8 @@ export default function ContractManagement() {
   const [filteredContracts, setFilteredContracts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedContract, setSelectedContract] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [filterStatus, setFilterStatus] = useState('all');
-
-  const [contractForm, setContractForm] = useState({
-    company_name: '',
-    contract_type: 'Service Agreement',
-    start_date: '',
-    end_date: '',
-    contract_value: '',
-    payment_terms: 'Monthly',
-    status: 'active',
-    notes: ''
-  });
 
   useEffect(() => {
     fetchContracts();
@@ -113,83 +100,6 @@ export default function ContractManagement() {
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
-  const openModal = (contract = null) => {
-    if (contract) {
-      setSelectedContract(contract);
-      setContractForm({
-        company_name: contract.company_name || '',
-        contract_type: contract.contract_type || 'Service Agreement',
-        start_date: contract.start_date || '',
-        end_date: contract.end_date || '',
-        contract_value: contract.contract_value || '',
-        payment_terms: contract.payment_terms || 'Monthly',
-        status: contract.status || 'active',
-        notes: contract.notes || ''
-      });
-    } else {
-      setSelectedContract(null);
-      setContractForm({
-        company_name: '',
-        contract_type: 'Service Agreement',
-        start_date: '',
-        end_date: '',
-        contract_value: '',
-        payment_terms: 'Monthly',
-        status: 'active',
-        notes: ''
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedContract(null);
-    setContractForm({
-      company_name: '',
-      contract_type: 'Service Agreement',
-      start_date: '',
-      end_date: '',
-      contract_value: '',
-      payment_terms: 'Monthly',
-      status: 'active',
-      notes: ''
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const payload = {
-        ...contractForm,
-        contract_value: parseFloat(contractForm.contract_value)
-      };
-
-      let response;
-      if (selectedContract) {
-        response = await axios.put(
-          `http://localhost:5000/api/contracts/${selectedContract.contract_id}`, 
-          payload
-        );
-      } else {
-        response = await axios.post('http://localhost:5000/api/contracts', payload);
-      }
-      
-      if (response.data.success) {
-        showMessage('success', selectedContract ? 'Contract updated successfully' : 'Contract created successfully');
-        fetchContracts();
-        closeModal();
-      }
-    } catch (error) {
-      showMessage('error', error.response?.data?.message || 'Operation failed');
-      console.error('Submit error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleDeleteContract = async (contractId, companyName) => {
     if (!window.confirm(`Are you sure you want to delete the contract with ${companyName}?`)) return;
 
@@ -203,25 +113,6 @@ export default function ContractManagement() {
       showMessage('error', 'Failed to delete contract');
       console.error('Delete error:', error);
     }
-  };
-
-  const handleExtendContract = (contract) => {
-    const currentEndDate = new Date(contract.end_date);
-    const extendedEndDate = new Date(currentEndDate);
-    extendedEndDate.setFullYear(extendedEndDate.getFullYear() + 1);
-    
-    setSelectedContract(contract);
-    setContractForm({
-      company_name: contract.company_name || '',
-      contract_type: contract.contract_type || 'Service Agreement',
-      start_date: contract.start_date || '',
-      end_date: extendedEndDate.toISOString().split('T')[0],
-      contract_value: contract.contract_value || '',
-      payment_terms: contract.payment_terms || 'Monthly',
-      status: 'active',
-      notes: contract.notes || ''
-    });
-    setIsModalOpen(true);
   };
 
   const formatCurrency = (amount) => {
@@ -243,8 +134,7 @@ export default function ContractManagement() {
     totalContracts: contracts.length,
     activeContracts: contracts.filter(c => c.contractStatus === 'active').length,
     expiringContracts: contracts.filter(c => c.contractStatus === 'expiring').length,
-    expiredContracts: contracts.filter(c => c.contractStatus === 'expired').length,
-    totalValue: contracts.reduce((sum, c) => sum + (parseFloat(c.contract_value) || 0), 0)
+    expiredContracts: contracts.filter(c => c.contractStatus === 'expired').length
   };
 
   return (
@@ -264,7 +154,7 @@ export default function ContractManagement() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-blue-100 rounded-lg">
@@ -303,16 +193,6 @@ export default function ContractManagement() {
           </div>
           <h3 className="text-2xl font-bold text-slate-800 mb-1">{stats.expiredContracts}</h3>
           <p className="text-slate-600 text-sm">Expired</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-bold text-slate-800 mb-1">{formatCurrency(stats.totalValue)}</h3>
-          <p className="text-slate-600 text-sm">Total Value</p>
         </div>
       </div>
 
@@ -374,14 +254,6 @@ export default function ContractManagement() {
               <span>Expired</span>
             </button>
           </div>
-
-          <button
-            onClick={() => openModal()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center space-x-2 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Contract</span>
-          </button>
         </div>
       </div>
 
@@ -495,20 +367,6 @@ export default function ContractManagement() {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => openModal(contract)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit Contract"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleExtendContract(contract)}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Extend Contract"
-                        >
-                          <Calendar className="w-4 h-4" />
-                        </button>
-                        <button
                           onClick={() => handleDeleteContract(contract.contract_id, contract.company_name)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete Contract"
@@ -524,157 +382,6 @@ export default function ContractManagement() {
           </div>
         )}
       </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 backdrop-blur-md bg-white/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-slate-800">
-                {selectedContract ? 'Edit Contract' : 'New Contract'}
-              </h2>
-              <button onClick={closeModal} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                <X className="w-6 h-6 text-slate-600" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Company Name *</label>
-                  <input
-                    type="text"
-                    value={contractForm.company_name}
-                    onChange={(e) => setContractForm(prev => ({ ...prev, company_name: e.target.value }))}
-                    required
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter company name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Contract Type *</label>
-                  <select
-                    value={contractForm.contract_type}
-                    onChange={(e) => setContractForm(prev => ({ ...prev, contract_type: e.target.value }))}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Service Agreement">Service Agreement</option>
-                    <option value="Maintenance Contract">Maintenance Contract</option>
-                    <option value="Supply Contract">Supply Contract</option>
-                    <option value="Consulting Agreement">Consulting Agreement</option>
-                    <option value="Partnership Agreement">Partnership Agreement</option>
-                    <option value="Lease Agreement">Lease Agreement</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Start Date *</label>
-                    <input
-                      type="date"
-                      value={contractForm.start_date}
-                      onChange={(e) => setContractForm(prev => ({ ...prev, start_date: e.target.value }))}
-                      required
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">End Date *</label>
-                    <input
-                      type="date"
-                      value={contractForm.end_date}
-                      onChange={(e) => setContractForm(prev => ({ ...prev, end_date: e.target.value }))}
-                      required
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Contract Value *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={contractForm.contract_value}
-                    onChange={(e) => setContractForm(prev => ({ ...prev, contract_value: e.target.value }))}
-                    required
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Payment Terms</label>
-                  <select
-                    value={contractForm.payment_terms}
-                    onChange={(e) => setContractForm(prev => ({ ...prev, payment_terms: e.target.value }))}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Monthly">Monthly</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Semi-Annual">Semi-Annual</option>
-                    <option value="Annual">Annual</option>
-                    <option value="One-Time">One-Time</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
-                  <select
-                    value={contractForm.status}
-                    onChange={(e) => setContractForm(prev => ({ ...prev, status: e.target.value }))}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="suspended">Suspended</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Notes</label>
-                  <textarea
-                    value={contractForm.notes}
-                    onChange={(e) => setContractForm(prev => ({ ...prev, notes: e.target.value }))}
-                    rows="3"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Add any additional notes..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center space-x-2 transition-colors disabled:opacity-50"
-                >
-                  {loading ? (
-                    <>
-                      <Loader className="w-5 h-5 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5" />
-                      <span>Save Contract</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
