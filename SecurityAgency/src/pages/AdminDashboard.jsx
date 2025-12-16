@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PersonnelManagement from './PersonnelManagement';
 import SalaryManagement from './SalaryManagement';
+import ContractManagement from './ContractManagement';
+import ClientManagement from './ClientManagement';
+import AssignmentManagement from './AssignmentPage';
+
+
 import { 
   Shield, Users, Briefcase, UserCheck, DollarSign, FileText, 
   Menu, X, Home, LogOut, Settings, Bell, Search, TrendingUp,
@@ -303,6 +308,27 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* Contract Management */}
+          {activeMenu === 'contracts' && (
+            <div className="animate-in fade-in duration-500">
+              <ContractManagement />
+            </div>
+          )}
+
+          {/*CLient Management */}
+          {activeMenu === 'clients' && (
+            <div className="animate-in fade-in duration-500">
+              <ClientManagement />
+            </div>
+          )} 
+
+          {/* Assignment Management */}
+          {activeMenu === 'assignments' && (
+            <div className="animate-in fade-in duration-500">
+              <AssignmentManagement />
+            </div>
+          )}
+          
           {/* Placeholder for other menu items */}
           {activeMenu !== 'dashboard' && activeMenu !== 'personnel' && activeMenu !== 'salary' && (
             <div className="bg-white rounded-xl shadow-sm p-8 border border-slate-200 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
