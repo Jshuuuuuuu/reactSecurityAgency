@@ -612,6 +612,242 @@ app.delete('/api/salary/:personnelId', async (req, res) => {
   }
 });
 
+// ==================== CLIENT MANAGEMENT ENDPOINTS ====================
+
+// Get all clients with optional search
+app.get('/api/clients', async (req, res) => {
+  const { search } = req.query;
+  
+  try {
+    let query = `
+      SELECT 
+        c.client_id,
+        c.client_name AS business_name,
+        c.contact_person,
+        c.contact_number AS contact_no,
+        c.email,
+        c.clienttype_id,
+        c.address_id,
+        ct.business_type as client_type,
+        a.street,
+        a.barangay,
+        a.city,
+        a.province,
+        a.postal_code,
+        CONCAT_WS(', ', 
+          NULLIF(a.street, ''), 
+          NULLIF(a.barangay, ''), 
+          NULLIF(a.city, ''), 
+          NULLIF(a.province, '')
+        ) as address
+      FROM client c
+      LEFT JOIN clienttype ct ON c.clienttype_id = ct.clienttype_id
+      LEFT JOIN address a ON c.address_id = a.address_id
+    `;
+    
+    const params = [];
+    if (search) {
+      query += ` WHERE LOWER(c.client_name) LIKE LOWER($1) 
+                 OR LOWER(c.contact_person) LIKE LOWER($1) 
+                 OR LOWER(c.email) LIKE LOWER($1) 
+                 OR CAST(c.contact_number AS TEXT) LIKE $1`;
+      params.push(`%${search}%`);
+    }
+    
+    query += ' ORDER BY c.client_id DESC';
+    
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Get clients error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching clients' });
+  }
+});
+
+// Get single client by ID
+app.get('/api/clients/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        c.client_id,
+        c.client_name AS business_name,
+        c.contact_person,
+        c.contact_number AS contact_no,
+        c.email,
+        c.clienttype_id,
+        c.address_id,
+        ct.business_type as client_type,
+        a.street,
+        a.barangay,
+        a.city,
+        a.province,
+        a.postal_code,
+        CONCAT_WS(', ', 
+          NULLIF(a.street, ''), 
+          NULLIF(a.barangay, ''), 
+          NULLIF(a.city, ''), 
+          NULLIF(a.province, '')
+        ) as address
+      FROM client c
+      LEFT JOIN clienttype ct ON c.clienttype_id = ct.clienttype_id
+      LEFT JOIN address a ON c.address_id = a.address_id
+      WHERE c.client_id = $1`,
+      [req.params.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Client not found' });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Get client error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching client' });
+  }
+});
+
+// Add new client
+app.post('/api/clients', async (req, res) => {
+  const { 
+    business_name, 
+    contact_person, 
+    contact_no, 
+    email,
+    clienttype_id,
+    street,
+    barangay,
+    city,
+    province,
+    postal_code
+  } = req.body;
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Insert address first
+    let address_id = null;
+    if (street || barangay || city || province) {
+      const addressResult = await client.query(
+        `INSERT INTO address (street, barangay, city, province, postal_code)
+         VALUES ($1, $2, $3, $4, $5) RETURNING address_id`,
+        [street, barangay, city, province, postal_code]
+      );
+      address_id = addressResult.rows[0].address_id;
+    }
+
+    // Insert client
+    // Extract only digits from contact_no and truncate to fit integer (last 9 digits)
+    const contactNumber = contact_no ? parseInt(contact_no.replace(/\D/g, '').slice(-9)) : null;
+    const clientResult = await client.query(
+      `INSERT INTO client (client_name, contact_person, contact_number, email, clienttype_id, address_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [business_name, contact_person, contactNumber, email, clienttype_id, address_id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Client added successfully', data: clientResult.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Add client error:', error);
+    res.status(500).json({ success: false, message: 'Error adding client', error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Update client
+app.put('/api/clients/:id', async (req, res) => {
+  const { 
+    business_name, 
+    contact_person, 
+    contact_no, 
+    email,
+    clienttype_id,
+    street,
+    barangay,
+    city,
+    province,
+    postal_code
+  } = req.body;
+
+  let address_id = req.body.address_id;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Update or create address
+    if (address_id) {
+      await client.query(
+        `UPDATE address SET street = $1, barangay = $2, city = $3, province = $4, postal_code = $5
+         WHERE address_id = $6`,
+        [street, barangay, city, province, postal_code, address_id]
+      );
+    } else if (street || barangay || city || province) {
+      const addressResult = await client.query(
+        `INSERT INTO address (street, barangay, city, province, postal_code)
+         VALUES ($1, $2, $3, $4, $5) RETURNING address_id`,
+        [street, barangay, city, province, postal_code]
+      );
+      address_id = addressResult.rows[0].address_id;
+    }
+
+    // Update client
+    // Extract only digits from contact_no and truncate to fit integer (last 9 digits)
+    const contactNumber = contact_no ? parseInt(contact_no.replace(/\D/g, '').slice(-9)) : null;
+    const result = await client.query(
+      `UPDATE client 
+       SET client_name = $1, contact_person = $2, contact_number = $3, 
+           email = $4, clienttype_id = $5, address_id = $6
+       WHERE client_id = $7 RETURNING *`,
+      [business_name, contact_person, contactNumber, email, clienttype_id, address_id, req.params.id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Client updated successfully', data: result.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Update client error:', error);
+    res.status(500).json({ success: false, message: 'Error updating client', error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Delete client
+app.delete('/api/clients/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM client WHERE client_id = $1 RETURNING *',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Client not found' });
+    }
+
+    res.json({ success: true, message: 'Client deleted successfully' });
+  } catch (error) {
+    console.error('Delete client error:', error);
+    res.status(500).json({ success: false, message: 'Error deleting client', error: error.message });
+  }
+});
+
+// Get client types for dropdown
+app.get('/api/client-types', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT clienttype_id, business_type as title FROM clienttype ORDER BY clienttype_id'
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Get client types error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching client types' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Visit http://localhost:${PORT}/api/setup to initialize the database`);
