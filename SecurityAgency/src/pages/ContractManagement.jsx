@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
-  FileText, Search, Trash2, AlertCircle, 
+  FileText, Search, Trash2, AlertCircle, Plus, Edit, X, Save,
   CheckCircle, Loader, Building,
   Clock, AlertTriangle, CheckSquare
 } from 'lucide-react';
@@ -13,9 +13,19 @@ export default function ContractManagement() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [filterStatus, setFilterStatus] = useState('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingContract, setEditingContract] = useState(null);
+  const [clients, setClients] = useState([]);
+  const [formData, setFormData] = useState({
+    client_id: '',
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: '',
+    contract_value: ''
+  });
 
   useEffect(() => {
     fetchContracts();
+    fetchClients();
   }, []);
 
   useEffect(() => {
@@ -31,6 +41,8 @@ export default function ContractManagement() {
           ...contract,
           ...calculateContractDuration(contract.start_date, contract.end_date)
         }));
+        
+        contractsWithCalculations.sort((a, b) => a.daysRemaining - b.daysRemaining);
         setContracts(contractsWithCalculations);
         setFilteredContracts(contractsWithCalculations);
       }
@@ -39,6 +51,17 @@ export default function ContractManagement() {
       console.error('Fetch error:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClients = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/clients');
+      if (response.data.success) {
+        setClients(response.data.data);
+      }
+    } catch (error) {
+      console.error('Fetch clients error:', error);
     }
   };
 
@@ -98,6 +121,76 @@ export default function ContractManagement() {
   const showMessage = (type, text) => {
     setMessage({ type, text });
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+  };
+
+  const openModal = (contract = null) => {
+    if (contract) {
+      setEditingContract(contract);
+      setFormData({
+        client_id: contract.client_id || '',
+        start_date: contract.start_date ? contract.start_date.split('T')[0] : new Date().toISOString().split('T')[0],
+        end_date: contract.end_date ? contract.end_date.split('T')[0] : '',
+        contract_value: contract.contract_value || ''
+      });
+    } else {
+      setEditingContract(null);
+      setFormData({
+        client_id: '',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: '',
+        contract_value: ''
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingContract(null);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.client_id || !formData.end_date || !formData.contract_value) {
+      showMessage('error', 'Please fill in all required fields');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const url = editingContract 
+        ? `http://localhost:5000/api/contracts/${editingContract.contract_id}`
+        : 'http://localhost:5000/api/contracts';
+      
+      const method = editingContract ? 'PUT' : 'POST';
+
+      const response = await axios({
+        method,
+        url,
+        data: formData,
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.data.success) {
+        showMessage('success', `Contract ${editingContract ? 'updated' : 'added'} successfully`);
+        fetchContracts();
+        closeModal();
+      } else {
+        showMessage('error', response.data.message || 'Operation failed');
+      }
+    } catch (error) {
+      showMessage('error', 'Operation failed');
+      console.error('Submit error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteContract = async (contractId, companyName) => {
@@ -210,6 +303,13 @@ export default function ContractManagement() {
           </div>
           
           <div className="flex gap-2">
+            <button
+              onClick={() => openModal()}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add Contract</span>
+            </button>
             <button
               onClick={() => setFilterStatus('all')}
               className={`px-4 py-2 rounded-lg transition-colors ${
@@ -367,6 +467,13 @@ export default function ContractManagement() {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
                         <button
+                          onClick={() => openModal(contract)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit Contract"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleDeleteContract(contract.contract_id, contract.company_name)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete Contract"
@@ -382,6 +489,116 @@ export default function ContractManagement() {
           </div>
         )}
       </div>
+
+      {/* Add/Edit Contract Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 backdrop-blur-md bg-white/30 flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in slide-in-from-top-4 zoom-in-95 duration-500">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-800">
+                {editingContract ? 'Edit Contract' : 'Add New Contract'}
+              </h2>
+              <button onClick={closeModal} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="w-6 h-6 text-slate-600" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSubmit} className="p-6">
+              <div className="space-y-6">
+                {/* Client Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Select Client *</label>
+                  <select
+                    name="client_id"
+                    value={formData.client_id}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Choose a Client</option>
+                    {clients.map(client => (
+                      <option key={client.client_id} value={client.client_id}>
+                        {client.business_name || client.client_name} (ID: {client.client_id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Start Date */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Contract Start Date</label>
+                  <input
+                    type="date"
+                    name="start_date"
+                    value={formData.start_date}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* End Date */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Contract End Date *</label>
+                  <input
+                    type="date"
+                    name="end_date"
+                    value={formData.end_date}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Contract Value */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Contract Value (₱) *</label>
+                  <input
+                    type="number"
+                    name="contract_value"
+                    value={formData.contract_value}
+                    onChange={handleInputChange}
+                    placeholder="Enter contract value"
+                    min="0"
+                    step="0.01"
+                    required
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center space-x-2 transition-colors disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      <span>{editingContract ? 'Update' : 'Add'} Contract</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -13,17 +13,24 @@ export default function AssignmentManagement() {
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [lookupData, setLookupData] = useState({ 
     personnel: [], 
+    clients: [],
     contracts: [],
-    statuses: []
+    statuses: [],
+    paymentTypes: []
   });
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [availablePersonnel, setAvailablePersonnel] = useState([]);
+  const [selectedPersonnelList, setSelectedPersonnelList] = useState([]);
 
   const [formData, setFormData] = useState({
-    personnel_id: '',
-    contract_id: '',
+    client_id: '',
     start_date: '',
     end_date: '',
-    status_id: ''
+    status_id: '',
+    paymenttype_id: '',
+    deployment_count: '',
+    personnel_assignments: [] // Array of {personnel_id, base_pay}
   });
 
   useEffect(() => {
@@ -54,20 +61,26 @@ export default function AssignmentManagement() {
 
   const fetchLookupData = async () => {
     try {
-      const [personnelRes, contractsRes, statusesRes] = await Promise.all([
+      const [personnelRes, clientsRes, contractsRes, statusesRes, paymentTypesRes] = await Promise.all([
         fetch('http://localhost:5000/api/personnel'),
+        fetch('http://localhost:5000/api/clients'),
         fetch('http://localhost:5000/api/contracts'),
-        fetch('http://localhost:5000/api/assignment-statuses')
+        fetch('http://localhost:5000/api/assignment-statuses'),
+        fetch('http://localhost:5000/api/payment-types')
       ]);
 
       const personnelData = await personnelRes.json();
+      const clientsData = await clientsRes.json();
       const contractsData = await contractsRes.json();
       const statusesData = await statusesRes.json();
+      const paymentTypesData = await paymentTypesRes.json();
 
       setLookupData({
         personnel: personnelData.success ? personnelData.data : [],
+        clients: clientsData.success ? clientsData.data : [],
         contracts: contractsData.success ? contractsData.data : [],
-        statuses: statusesData.success ? statusesData.data : []
+        statuses: statusesData.success ? statusesData.data : [],
+        paymentTypes: paymentTypesData.success ? paymentTypesData.data : []
       });
     } catch (error) {
       console.error('Fetch lookup data error:', error);
@@ -81,7 +94,7 @@ export default function AssignmentManagement() {
       const filtered = assignments.filter(a => 
         a.assignment_id?.toString().includes(searchTerm) ||
         a.personnel_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.contract_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         a.status?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredAssignments(filtered);
@@ -93,26 +106,51 @@ export default function AssignmentManagement() {
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
+  const handleClientSelect = (clientId) => {
+    setFormData(prev => ({ ...prev, client_id: clientId }));
+    setSelectedClient(lookupData.clients.find(c => c.client_id === parseInt(clientId)));
+    setAvailablePersonnel(lookupData.personnel);
+    setSelectedPersonnelList([]);
+  };
+
+  const togglePersonnelSelection = (personnel) => {
+    setSelectedPersonnelList(prev => {
+      const exists = prev.find(p => p.personnel_id === personnel.personnel_id);
+      if (exists) {
+        return prev.filter(p => p.personnel_id !== personnel.personnel_id);
+      } else {
+        return [...prev, personnel];
+      }
+    });
+  };
+
   const openModal = (assignment = null) => {
     if (assignment) {
       setEditingAssignment(assignment);
       setFormData({
-        personnel_id: assignment.personnel_id || '',
-        contract_id: assignment.contract_id || '',
+        client_id: assignment.client_id || '',
         start_date: assignment.start_date ? assignment.start_date.split('T')[0] : '',
         end_date: assignment.end_date ? assignment.end_date.split('T')[0] : '',
-        status_id: assignment.status_id || ''
+        status_id: assignment.status_id || '',
+        paymenttype_id: assignment.paymenttype_id || '',
+        deployment_count: '',
+        personnel_assignments: []
       });
     } else {
       setEditingAssignment(null);
       setFormData({
-        personnel_id: '',
-        contract_id: '',
+        client_id: '',
         start_date: '',
         end_date: '',
-        status_id: ''
+        status_id: '',
+        paymenttype_id: '',
+        deployment_count: '',
+        personnel_assignments: []
       });
     }
+    setSelectedClient(null);
+    setAvailablePersonnel([]);
+    setSelectedPersonnelList([]);
     setIsModalOpen(true);
   };
 
@@ -123,29 +161,61 @@ export default function AssignmentManagement() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.client_id) {
+      showMessage('error', 'Please select a client');
+      return;
+    }
+    
+    if (selectedPersonnelList.length === 0) {
+      showMessage('error', 'Please select at least one personnel');
+      return;
+    }
+    
+    if (!formData.status_id) {
+      showMessage('error', 'Please select a status');
+      return;
+    }
+
+    if (!formData.paymenttype_id) {
+      showMessage('error', 'Please select a payment type');
+      return;
+    }
+
+    if (!formData.start_date || !formData.end_date) {
+      showMessage('error', 'Please set start and end dates');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const url = editingAssignment 
-        ? `http://localhost:5000/api/assignments/${editingAssignment.assignment_id}`
-        : 'http://localhost:5000/api/assignments';
-      
-      const method = editingAssignment ? 'PUT' : 'POST';
+      // Create an assignment for each selected personnel
+      const assignmentPromises = selectedPersonnelList.map(personnel =>
+        fetch('http://localhost:5000/api/assignments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            personnel_id: personnel.personnel_id,
+            client_id: selectedClient?.client_id,
+            status_id: formData.status_id,
+            paymenttype_id: formData.paymenttype_id,
+            start_date: formData.start_date,
+            end_date: formData.end_date
+          })
+        })
+      );
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      const responses = await Promise.all(assignmentPromises);
+      const results = await Promise.all(responses.map(r => r.json()));
 
-      const data = await response.json();
-
-      if (data.success) {
-        showMessage('success', `Assignment ${editingAssignment ? 'updated' : 'added'} successfully`);
+      const allSuccess = results.every(r => r.success);
+      if (allSuccess) {
+        showMessage('success', `${selectedPersonnelList.length} assignment(s) added successfully`);
         fetchAssignments();
         closeModal();
       } else {
-        showMessage('error', data.message || 'Operation failed');
+        showMessage('error', 'Some assignments failed to be added');
       }
     } catch (error) {
       showMessage('error', 'Operation failed');
@@ -177,9 +247,20 @@ export default function AssignmentManagement() {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const calculateDuration = (startDate, endDate) => {
+    if (!startDate || !endDate) return 'N/A';
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Same day';
+    if (diffDays === 1) return '1 day';
+    if (diffDays < 7) return `${diffDays} days`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months`;
+    return `${Math.floor(diffDays / 365)} years`;
   };
 
   const getStatusBadgeColor = (status) => {
@@ -223,7 +304,7 @@ export default function AssignmentManagement() {
             <Search className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by assignment ID, personnel name, contract, or status..."
+              placeholder="Search by assignment ID, personnel name, client, or status..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -258,9 +339,10 @@ export default function AssignmentManagement() {
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Assignment ID</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Personnel</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Contract</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Client</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Start Date</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">End Date</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Duration</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Status</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Actions</th>
                 </tr>
@@ -288,8 +370,8 @@ export default function AssignmentManagement() {
                       <div className="flex items-center space-x-2">
                         <FileText className="w-4 h-4 text-slate-400" />
                         <div>
-                          <p className="text-sm text-slate-800">{assignment.contract_title || 'N/A'}</p>
-                          <p className="text-xs text-slate-500">ID: {assignment.contract_id}</p>
+                          <p className="text-sm text-slate-800">{assignment.client_name || 'N/A'}</p>
+                          <p className="text-xs text-slate-500">ID: {assignment.client_id}</p>
                         </div>
                       </div>
                     </td>
@@ -308,6 +390,12 @@ export default function AssignmentManagement() {
                           {assignment.end_date ? new Date(assignment.end_date).toLocaleDateString() : 'N/A'}
                         </span>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center space-x-1 px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">
+                        <Clock className="w-3 h-3" />
+                        <span>{calculateDuration(assignment.start_date, assignment.end_date)}</span>
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeColor(assignment.status)}`}>
@@ -357,89 +445,165 @@ export default function AssignmentManagement() {
             {/* Modal Body */}
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Assignment Details */}
+                {/* Client Selection */}
                 <div className="md:col-span-2">
                   <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center space-x-2">
-                    <ClipboardList className="w-5 h-5 text-blue-600" />
-                    <span>Assignment Details</span>
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <span>Select Client</span>
                   </h3>
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Personnel *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Client *</label>
                   <select
-                    name="personnel_id"
-                    value={formData.personnel_id}
-                    onChange={handleInputChange}
+                    value={formData.client_id}
+                    onChange={(e) => handleClientSelect(e.target.value)}
                     required
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Select Personnel</option>
-                    {lookupData.personnel.map(p => (
-                      <option key={p.personnel_id} value={p.personnel_id}>
-                        {p.personnel_name} (ID: {p.personnel_id})
+                    <option value="">Select a Client</option>
+                    {lookupData.clients.map(c => (
+                      <option key={c.client_id} value={c.client_id}>
+                        {c.business_name || c.client_name} (ID: {c.client_id})
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Contract *</label>
-                  <select
-                    name="contract_id"
-                    value={formData.contract_id}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Contract</option>
-                    {lookupData.contracts.map(c => (
-                      <option key={c.contract_id} value={c.contract_id}>
-                        {c.contract_title || c.client_name} (ID: {c.contract_id})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Personnel Selection */}
+                {selectedClient && (
+                  <>
+                    <div className="md:col-span-2">
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center space-x-2">
+                        <User className="w-5 h-5 text-blue-600" />
+                        <span>Select Personnel to Deploy</span>
+                      </h3>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Start Date *</label>
-                  <input
-                    type="date"
-                    name="start_date"
-                    value={formData.start_date}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                    <div className="md:col-span-2">
+                      <div className="border border-slate-300 rounded-lg p-4 max-h-96 overflow-y-auto">
+                        {availablePersonnel.length === 0 ? (
+                          <p className="text-slate-500 text-center py-4">No personnel available</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {availablePersonnel.map(personnel => (
+                              <div
+                                key={personnel.personnel_id}
+                                className="flex items-center p-3 border border-slate-200 rounded-lg hover:bg-blue-50 transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPersonnelList.some(p => p.personnel_id === personnel.personnel_id)}
+                                  onChange={() => togglePersonnelSelection(personnel)}
+                                  className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                                />
+                                <div className="flex-1 ml-3">
+                                  <p className="font-medium text-slate-800">{personnel.personnel_name}</p>
+                                  <p className="text-xs text-slate-500">ID: {personnel.personnel_id}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">End Date *</label>
-                  <input
-                    type="date"
-                    name="end_date"
-                    value={formData.end_date}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                    {/* Selected Personnel with Base Pay */}
+                    {selectedPersonnelList.length > 0 && (
+                      <>
+                        <div className="md:col-span-2">
+                          <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center space-x-2">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            <span>Selected Personnel ({selectedPersonnelList.length})</span>
+                          </h3>
+                        </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Status *</label>
-                  <select
-                    name="status_id"
-                    value={formData.status_id}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Status</option>
-                    {lookupData.statuses.map(s => (
-                      <option key={s.status_id} value={s.status_id}>{s.status_name}</option>
-                    ))}
-                  </select>
-                </div>
+                        <div className="md:col-span-2">
+                          <div className="space-y-3">
+                            {selectedPersonnelList.map(personnel => (
+                              <div key={personnel.personnel_id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <div>
+                                  <p className="font-medium text-slate-800">
+                                    {personnel.personnel_name}
+                                  </p>
+                                  <p className="text-xs text-slate-500">ID: {personnel.personnel_id}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => togglePersonnelSelection(personnel)}
+                                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Assignment Details */}
+                    <div className="md:col-span-2">
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center space-x-2">
+                        <Calendar className="w-5 h-5 text-blue-600" />
+                        <span>Assignment Dates & Status</span>
+                      </h3>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Start Date *</label>
+                      <input
+                        type="date"
+                        value={formData.start_date}
+                        onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                        required
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">End Date *</label>
+                      <input
+                        type="date"
+                        value={formData.end_date}
+                        onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                        required
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Status *</label>
+                      <select
+                        value={formData.status_id}
+                        onChange={(e) => setFormData(prev => ({ ...prev, status_id: e.target.value }))}
+                        required
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Status</option>
+                        {lookupData.statuses.map(s => (
+                          <option key={s.status_id} value={s.status_id}>{s.status_name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Payment Type */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Type *</label>
+                      <select
+                        value={formData.paymenttype_id}
+                        onChange={(e) => setFormData(prev => ({ ...prev, paymenttype_id: e.target.value }))}
+                        required
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select Payment Type</option>
+                        {lookupData.paymentTypes.map(pt => (
+                          <option key={pt.paymenttype_id} value={pt.paymenttype_id}>{pt.type}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Modal Footer */}
@@ -454,18 +618,18 @@ export default function AssignmentManagement() {
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={loading}
+                  disabled={loading || !selectedClient || selectedPersonnelList.length === 0}
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center space-x-2 transition-colors disabled:opacity-50"
                 >
                   {loading ? (
                     <>
                       <Loader className="w-5 h-5 animate-spin" />
-                      <span>Saving...</span>
+                      <span>Deploying...</span>
                     </>
                   ) : (
                     <>
                       <Save className="w-5 h-5" />
-                      <span>{editingAssignment ? 'Update' : 'Save'}</span>
+                      <span>Deploy Personnel</span>
                     </>
                   )}
                 </button>

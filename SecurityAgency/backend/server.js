@@ -848,6 +848,355 @@ app.get('/api/client-types', async (req, res) => {
   }
 });
 
+// Get payment types
+app.get('/api/payment-types', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT paymenttype_id, type FROM paymenttype ORDER BY paymenttype_id'
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Get payment types error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching payment types' });
+  }
+});
+
+// ==================== ASSIGNMENT MANAGEMENT ENDPOINTS ====================
+
+// Get all assignments with optional search
+app.get('/api/assignments', async (req, res) => {
+  const { search } = req.query;
+  
+  try {
+    let query = `
+      SELECT 
+        a.assignment_id,
+        a.personnel_id,
+        a.client_id,
+        a.assignment_start as start_date,
+        a.assignment_end as end_date,
+        a.status_id,
+        a.paymenttype_id,
+        p.personnel_name,
+        cl.client_name,
+        s.status_name as status,
+        pt.type as payment_type
+      FROM assignment a
+      LEFT JOIN personnel p ON a.personnel_id = p.personnel_id
+      LEFT JOIN client cl ON a.client_id = cl.client_id
+      LEFT JOIN status s ON a.status_id = s.status_id
+      LEFT JOIN paymenttype pt ON a.paymenttype_id = pt.paymenttype_id
+    `;
+    
+    const params = [];
+    if (search) {
+      query += ` WHERE 
+                 CAST(a.assignment_id AS TEXT) LIKE $1 OR
+                 LOWER(p.personnel_name) LIKE LOWER($1) OR 
+                 LOWER(cl.client_name) LIKE LOWER($1)`;
+      params.push(`%${search}%`);
+    }
+    
+    query += ' ORDER BY a.assignment_id DESC';
+    
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Get assignments error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching assignments' });
+  }
+});
+
+// Get single assignment by ID
+app.get('/api/assignments/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        a.*,
+        a.assignment_start as start_date,
+        a.assignment_end as end_date,
+        p.personnel_name,
+        cl.client_name,
+        s.status_name as status,
+        pt.type as payment_type
+      FROM assignment a
+      LEFT JOIN personnel p ON a.personnel_id = p.personnel_id
+      LEFT JOIN client cl ON a.client_id = cl.client_id
+      LEFT JOIN status s ON a.status_id = s.status_id
+      LEFT JOIN paymenttype pt ON a.paymenttype_id = pt.paymenttype_id
+      WHERE a.assignment_id = $1`,
+      [req.params.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Assignment not found' });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Get assignment error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching assignment' });
+  }
+});
+
+// Add new assignment
+app.post('/api/assignments', async (req, res) => {
+  const { 
+    personnel_id, 
+    client_id,
+    status_id,
+    start_date,
+    end_date,
+    paymenttype_id
+  } = req.body;
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO assignment (personnel_id, client_id, status_id, assignment_start, assignment_end, paymenttype_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [personnel_id, client_id, status_id, start_date, end_date, paymenttype_id]
+    );
+
+    res.json({ success: true, message: 'Assignment added successfully', data: result.rows[0] });
+  } catch (error) {
+    console.error('Add assignment error:', error);
+    res.status(500).json({ success: false, message: 'Error adding assignment', error: error.message });
+  }
+});
+
+// Update assignment
+app.put('/api/assignments/:id', async (req, res) => {
+  const { 
+    personnel_id, 
+    client_id,
+    status_id,
+    start_date,
+    end_date,
+    paymenttype_id
+  } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE assignment 
+       SET personnel_id = $1, client_id = $2, status_id = $3, assignment_start = $4, assignment_end = $5, paymenttype_id = $6
+       WHERE assignment_id = $7 RETURNING *`,
+      [personnel_id, client_id, status_id, start_date, end_date, paymenttype_id, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Assignment not found' });
+    }
+
+    res.json({ success: true, message: 'Assignment updated successfully', data: result.rows[0] });
+  } catch (error) {
+    console.error('Update assignment error:', error);
+    res.status(500).json({ success: false, message: 'Error updating assignment', error: error.message });
+  }
+});
+
+// Delete assignment
+app.delete('/api/assignments/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM assignment WHERE assignment_id = $1 RETURNING *',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Assignment not found' });
+    }
+
+    res.json({ success: true, message: 'Assignment deleted successfully' });
+  } catch (error) {
+    console.error('Delete assignment error:', error);
+    res.status(500).json({ success: false, message: 'Error deleting assignment', error: error.message });
+  }
+});
+
+// Get assignment statuses for dropdown
+app.get('/api/assignment-statuses', async (req, res) => {
+  try {
+    // Check if assignmentstatus table exists
+    const tableExists = await pool.query(
+      `SELECT EXISTS(
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'assignmentstatus'
+      )`
+    );
+
+    if (tableExists.rows[0].exists) {
+      const result = await pool.query(
+        'SELECT status_id, status_name FROM assignmentstatus ORDER BY status_id'
+      );
+      res.json({ success: true, data: result.rows });
+    } else {
+      // Return hardcoded statuses if table doesn't exist
+      const statuses = [
+        { status_id: 1, status_name: 'Active' },
+        { status_id: 2, status_name: 'Pending' },
+        { status_id: 3, status_name: 'Completed' },
+        { status_id: 4, status_name: 'On Hold' },
+        { status_id: 5, status_name: 'Cancelled' }
+      ];
+      res.json({ success: true, data: statuses });
+    }
+  } catch (error) {
+    console.error('Get assignment statuses error:', error);
+    // Return hardcoded statuses as fallback
+    const statuses = [
+      { status_id: 1, status_name: 'Active' },
+      { status_id: 2, status_name: 'Pending' },
+      { status_id: 3, status_name: 'Completed' },
+      { status_id: 4, status_name: 'On Hold' },
+      { status_id: 5, status_name: 'Cancelled' }
+    ];
+    res.json({ success: true, data: statuses });
+  }
+});
+
+// ==================== CONTRACT MANAGEMENT ENDPOINTS ====================
+
+// Get all contracts with optional search
+app.get('/api/contracts', async (req, res) => {
+  const { search } = req.query;
+  
+  try {
+    let query = `
+      SELECT 
+        c.contract_id,
+        c.client_id,
+        c.start_date,
+        c.end_date,
+        c.contract_value,
+        cl.client_name as company_name,
+        ct.business_type as contract_type
+      FROM contract c
+      LEFT JOIN client cl ON c.client_id = cl.client_id
+      LEFT JOIN clienttype ct ON cl.clienttype_id = ct.clienttype_id
+    `;
+    
+    const params = [];
+    if (search) {
+      query += ` WHERE 
+                 CAST(c.contract_id AS TEXT) LIKE $1 OR
+                 LOWER(cl.client_name) LIKE LOWER($1) OR 
+                 LOWER(ct.business_type) LIKE LOWER($1)`;
+      params.push(`%${search}%`);
+    }
+    
+    query += ' ORDER BY c.end_date ASC';
+    
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Get contracts error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching contracts' });
+  }
+});
+
+// Get single contract by ID
+app.get('/api/contracts/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        c.contract_id,
+        c.client_id,
+        c.start_date,
+        c.end_date,
+        c.contract_value,
+        cl.client_name as company_name,
+        ct.business_type as contract_type
+      FROM contract c
+      LEFT JOIN client cl ON c.client_id = cl.client_id
+      LEFT JOIN clienttype ct ON cl.clienttype_id = ct.clienttype_id
+      WHERE c.contract_id = $1`,
+      [req.params.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Contract not found' });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Get contract error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching contract' });
+  }
+});
+
+// Add new contract
+app.post('/api/contracts', async (req, res) => {
+  const { 
+    client_id, 
+    start_date, 
+    end_date, 
+    contract_value
+  } = req.body;
+
+  try {
+    // Use current date as start_date if not provided
+    const finalStartDate = start_date || new Date().toISOString().split('T')[0];
+    
+    const result = await pool.query(
+      `INSERT INTO contract (client_id, start_date, end_date, contract_value)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [client_id, finalStartDate, end_date, contract_value || 0]
+    );
+
+    res.json({ success: true, message: 'Contract added successfully', data: result.rows[0] });
+  } catch (error) {
+    console.error('Add contract error:', error);
+    res.status(500).json({ success: false, message: 'Error adding contract', error: error.message });
+  }
+});
+
+// Update contract
+app.put('/api/contracts/:id', async (req, res) => {
+  const { 
+    client_id, 
+    start_date, 
+    end_date, 
+    contract_value
+  } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE contract 
+       SET client_id = $1, start_date = $2, end_date = $3, contract_value = $4
+       WHERE contract_id = $5 RETURNING *`,
+      [client_id, start_date, end_date, contract_value || 0, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Contract not found' });
+    }
+
+    res.json({ success: true, message: 'Contract updated successfully', data: result.rows[0] });
+  } catch (error) {
+    console.error('Update contract error:', error);
+    res.status(500).json({ success: false, message: 'Error updating contract', error: error.message });
+  }
+});
+
+// Delete contract
+app.delete('/api/contracts/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM contract WHERE contract_id = $1 RETURNING *',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Contract not found' });
+    }
+
+    res.json({ success: true, message: 'Contract deleted successfully' });
+  } catch (error) {
+    console.error('Delete contract error:', error);
+    res.status(500).json({ success: false, message: 'Error deleting contract', error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Visit http://localhost:${PORT}/api/setup to initialize the database`);
