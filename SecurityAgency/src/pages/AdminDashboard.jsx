@@ -86,10 +86,10 @@ export default function AdminDashboard() {
 
     try {
       const [personnelRes, clientsRes, assignmentsRes, contractsRes] = await Promise.all([
-        fetch('${API_URL}/api/personnel'),
-        fetch('${API_URL}/api/clients'),
-        fetch('${API_URL}/api/assignments'),
-        fetch('${API_URL}/api/contracts')
+        fetch(`${API_URL}/api/personnel`),
+        fetch(`${API_URL}/api/clients`),
+        fetch(`${API_URL}/api/assignments`),
+        fetch(`${API_URL}/api/contracts`)
       ]);
 
       const [personnelData, clientsData, assignmentsData, contractsData] = await Promise.all([
