@@ -46,7 +46,7 @@ export default function AssignmentManagement() {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      const response = await fetch('${API_URL}/api/assignments');
+      const response = await fetch(`${API_URL}/api/assignments`);
       const data = await response.json();
       if (data.success) {
         setAssignments(data.data);
@@ -63,11 +63,11 @@ export default function AssignmentManagement() {
   const fetchLookupData = async () => {
     try {
       const [personnelRes, clientsRes, contractsRes, statusesRes, paymentTypesRes] = await Promise.all([
-        fetch('${API_URL}/api/personnel'),
-        fetch('${API_URL}/api/clients'),
-        fetch('${API_URL}/api/contracts'),
-        fetch('${API_URL}/api/assignment-statuses'),
-        fetch('${API_URL}/api/payment-types')
+        fetch(`${API_URL}/api/personnel`),
+        fetch(`${API_URL}/api/clients`),
+        fetch(`${API_URL}/api/contracts`),
+        fetch(`${API_URL}/api/assignment-statuses`),
+        fetch(`${API_URL}/api/payment-types`)
       ]);
 
       const personnelData = await personnelRes.json();

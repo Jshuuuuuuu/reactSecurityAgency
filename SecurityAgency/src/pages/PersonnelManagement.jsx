@@ -42,7 +42,7 @@ export default function PersonnelManagement() {
   const fetchPersonnel = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('${API_URL}/api/personnel');
+      const response = await axios.get(`${API_URL}/api/personnel`);
       if (response.data.success) {
         setPersonnel(response.data.data);
         setFilteredPersonnel(response.data.data);
@@ -57,7 +57,7 @@ export default function PersonnelManagement() {
 
   const fetchLookupData = async () => {
     try {
-      const response = await axios.get('${API_URL}/api/lookup-data');
+      const response = await axios.get(`${API_URL}/api/lookup-data`);
       if (response.data.success) {
         setLookupData(response.data.data);
       }
@@ -143,7 +143,7 @@ export default function PersonnelManagement() {
           closeModal();
         }
       } else {
-        const response = await axios.post('${API_URL}/api/personnel', formData);
+        const response = await axios.post(`${API_URL}/api/personnel`, formData);
         if (response.data.success) {
           showMessage('success', 'Personnel added successfully');
           fetchPersonnel();

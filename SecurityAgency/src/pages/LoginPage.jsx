@@ -61,7 +61,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10">
         {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {/* Logo and Title */}
+          {/* Logo and Title */}=
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-4">
               <div className="p-3 bg-blue-600 rounded-xl">
@@ -171,8 +171,8 @@ export default function LoginPage() {
           {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-xs text-blue-800 font-medium mb-2">Demo Credentials:</p>
-            <p className="text-xs text-blue-700">Email: admin@rqa.com</p>
-            <p className="text-xs text-blue-700">Password: admin123</p>
+            <p className="text-xs text-blue-700">Email: test@rqa.com</p>
+            <p className="text-xs text-blue-700">Password: *********</p>
           </div>
         </div>
 

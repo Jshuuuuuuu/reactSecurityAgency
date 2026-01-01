@@ -36,7 +36,7 @@ export default function ContractManagement() {
   const fetchContracts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('${API_URL}/api/contracts');
+      const response = await axios.get(`${API_URL}/api/contracts`);
       if (response.data.success) {
         const contractsWithCalculations = response.data.data.map(contract => ({
           ...contract,
@@ -57,7 +57,7 @@ export default function ContractManagement() {
 
   const fetchClients = async () => {
     try {
-      const response = await axios.get('${API_URL}/api/clients');
+      const response = await axios.get(`${API_URL}/api/clients`);
       if (response.data.success) {
         setClients(response.data.data);
       }
@@ -167,8 +167,8 @@ export default function ContractManagement() {
 
     try {
       const url = editingContract 
-        ? `http://localhost:5000/api/contracts/${editingContract.contract_id}`
-        : '${API_URL}/api/contracts';
+        ? `${API_URL}/api/contracts/${editingContract.contract_id}`
+        : `${API_URL}/api/contracts`;
       
       const method = editingContract ? 'PUT' : 'POST';
 

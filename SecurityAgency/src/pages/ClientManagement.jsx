@@ -42,7 +42,7 @@ export default function ClientManagement() {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('${API_URL}/api/clients');
+      const response = await axios.get(`${API_URL}/api/clients`);
       if (response.data.success) {
         setClients(response.data.data);
         setFilteredClients(response.data.data);
@@ -57,7 +57,7 @@ export default function ClientManagement() {
 
   const fetchLookupData = async () => {
     try {
-      const response = await axios.get('${API_URL}/api/client-types');
+      const response = await axios.get(`${API_URL}/api/client-types`);
       if (response.data.success) {
         setLookupData({ clientTypes: response.data.data });
       }
@@ -140,7 +140,7 @@ export default function ClientManagement() {
           closeModal();
         }
       } else {
-        const response = await axios.post('${API_URL}/api/clients', formData);
+        const response = await axios.post(`${API_URL}/api/clients`, formData);
         if (response.data.success) {
           showMessage('success', 'Client added successfully');
           fetchClients();
