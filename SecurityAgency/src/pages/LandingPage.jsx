@@ -1,3 +1,4 @@
+import { API_URL } from ../config/api;
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Eye, Users, Clock, CheckCircle, Phone, Mail, MapPin, Menu, X, Lock, Zap, Award } from 'lucide-react';

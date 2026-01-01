@@ -1,3 +1,4 @@
+import { API_URL } from '../config/api';
 import React, { useState, useEffect } from 'react';
 import { 
   ClipboardList, Search, Plus, Edit, Trash2, X, Save, AlertCircle, 
@@ -45,7 +46,7 @@ export default function AssignmentManagement() {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/assignments');
+      const response = await fetch('${API_URL}/api/assignments');
       const data = await response.json();
       if (data.success) {
         setAssignments(data.data);
@@ -62,11 +63,11 @@ export default function AssignmentManagement() {
   const fetchLookupData = async () => {
     try {
       const [personnelRes, clientsRes, contractsRes, statusesRes, paymentTypesRes] = await Promise.all([
-        fetch('http://localhost:5000/api/personnel'),
-        fetch('http://localhost:5000/api/clients'),
-        fetch('http://localhost:5000/api/contracts'),
-        fetch('http://localhost:5000/api/assignment-statuses'),
-        fetch('http://localhost:5000/api/payment-types')
+        fetch('${API_URL}/api/personnel'),
+        fetch('${API_URL}/api/clients'),
+        fetch('${API_URL}/api/contracts'),
+        fetch('${API_URL}/api/assignment-statuses'),
+        fetch('${API_URL}/api/payment-types')
       ]);
 
       const personnelData = await personnelRes.json();
@@ -192,7 +193,7 @@ export default function AssignmentManagement() {
     try {
       // Create an assignment for each selected personnel
       const assignmentPromises = selectedPersonnelList.map(personnel =>
-        fetch('http://localhost:5000/api/assignments', {
+        fetch('${API_URL}/api/assignments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

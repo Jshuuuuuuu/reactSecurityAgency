@@ -1,3 +1,4 @@
+import { API_URL } from '../config/api';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PersonnelManagement from './PersonnelManagement';
@@ -85,10 +86,10 @@ export default function AdminDashboard() {
 
     try {
       const [personnelRes, clientsRes, assignmentsRes, contractsRes] = await Promise.all([
-        fetch('http://localhost:5000/api/personnel'),
-        fetch('http://localhost:5000/api/clients'),
-        fetch('http://localhost:5000/api/assignments'),
-        fetch('http://localhost:5000/api/contracts')
+        fetch('${API_URL}/api/personnel'),
+        fetch('${API_URL}/api/clients'),
+        fetch('${API_URL}/api/assignments'),
+        fetch('${API_URL}/api/contracts')
       ]);
 
       const [personnelData, clientsData, assignmentsData, contractsData] = await Promise.all([
