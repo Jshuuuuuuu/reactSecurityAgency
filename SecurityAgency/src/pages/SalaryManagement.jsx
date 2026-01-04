@@ -48,7 +48,7 @@ export default function SalaryManagement() {
   const fetchPersonnelWithSalary = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('${API_URL}/api/salary/personnel');
+      const response = await axios.get(`${API_URL}/api/salary/personnel`);
       if (response.data.success) {
         // Load payment status from localStorage
         const salaryData = JSON.parse(localStorage.getItem('salaryData') || '{}');
@@ -71,7 +71,7 @@ export default function SalaryManagement() {
 
   const fetchDeductions = async () => {
     try {
-      const response = await axios.get('${API_URL}/api/salary/deductions');
+      const response = await axios.get(`${API_URL}/api/salary/deductions`);
       if (response.data.success) {
         setDeductions(response.data.data);
       }
@@ -199,7 +199,7 @@ export default function SalaryManagement() {
         }))
       };
 
-      const response = await axios.post('${API_URL}/api/salary/calculate', payload);
+      const response = await axios.post(`${API_URL}/api/salary/calculate`, payload);
       
       if (response.data.success) {
         // Store payment status in localStorage as backup
